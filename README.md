@@ -75,4 +75,6 @@ The observation function **𝑍** defines the probability of observing **𝑜<su
 
 **𝑜<sub>t</sub>**: observation (e.g., feedback such as play, skip, like)
 
-## PPO for Policy update: [https://spinningup.openai.com/en/latest/algorithms/ppo.html#key-equations]
+## PPO
+We use [PPO for Policy Update](https://spinningup.openai.com/en/latest/algorithms/ppo.html#key-equations)
+
