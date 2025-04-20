@@ -1,6 +1,76 @@
 # AI-Project
 Adaptive Spotify Music Recommendation using Reinforcement Learning
 
-**State Space Representation**
+## State Space Representation
 
-The state space is represented by a latent vector derived from audio features and metadata of individual tracks. These latent vectors are learned using a Variational Autoencoder (VAE), which compresses high-dimensional audio feature data into a lower-dimensional embedding space. This latent representation captures the essential characteristics of each song, enabling compact and meaningful state descriptions. The state space **𝑆** thus consists of all such latent vectors corresponding to the available tracks, where each vector serves as a unique, continuous representation of the musical content and style of a track. This formulation allows the reinforcement learning agent to generalize across similar tracks and effectively learn user preferences, even in cold start (no user history) scenarios. Since we have a cold-start problem, we cannot use a user-track interaction matrix for state space representation and must instead rely on latent vector generation.
+The state space is represented by a latent vector derived from audio features and metadata of individual tracks. These **latent vectors** are learned using a **Variational Autoencoder (VAE)**, which compresses high-dimensional audio feature data into a lower-dimensional embedding space. This latent representation captures the essential characteristics of each song, enabling compact and meaningful state descriptions. The state space **𝑆** thus consists of all such latent vectors corresponding to the available tracks, where each vector serves as a unique, continuous representation of the musical content and style of a track. This formulation allows the reinforcement learning agent to generalize across similar tracks and effectively learn user preferences, even in **cold start (no user history)** scenarios. Since we have a cold-start problem, we cannot use a user-track interaction matrix for state space representation and must instead rely on latent vector generation.
+
+## Problem Formulation
+
+We model the problem as a **Partially Observable Markov Decision Process (POMDP)**, where the agent does not have full access to the state of the environment, such as a user's preferences or listening context. Instead, it must make decisions based on partial observations and indirect feedback.
+
+In reinforcement learning, an agent interacts with an environment over a sequence of time steps. At each time step 
+𝑡, the agent selects an action **𝑎<sub>t</sub> ∈ 𝐴** based on its current state **𝑠<sub>t</sub> ∈ 𝑆**, following a policy **𝜋: 𝑆 → 𝐴**. After executing the action, it receives a **reward 𝑟<sub>t</sub> :𝑆 × 𝐴 → 𝑅** and transitions to the **next state 𝑠<sub>t+1</sub>**. The objective is to learn a policy that maximizes the expected cumulative reward.
+
+To achieve this, we will be using **Proximal Policy Optimization (PPO)** a **policy-gradient algorithm** that enables stable learning in high-dimensional and continuous state spaces.
+
+# Mathematical Description
+## States Space:
+
+Each state **𝑠 ∈ 𝑆** is a continuous-valued latent vector derived from the audio features of a song using a trained Variational Autoencoder (VAE): 
+
+**𝑠<sub>t</sub> ∈ 𝑅<sup>d</sup>** , where **𝑠<sub>t</sub>** = VAEencoder(𝑥<sub>t</sub>)
+
+**x<sub>t</sub> ∈ 𝑅<sup>n</sup>** : vector of audio features for track 𝑡 (e.g., danceability, energy, valence, etc.)
+
+**𝑑 ≪ n** : dimensionality of latent space (4)
+
+## Action:
+
+Actions 𝑎 ∈ 𝐴 represent the track recommendations made by the agent at each time step. In our approach, actions are encoded in a continuous latent space, where each action corresponds to the latent vector of a candidate track. These vectors are learned via a Variational Autoencoder (VAE) and normalized within a bounded range (0-1). To learn the optimal policy, we use Proximal Policy Optimization (PPO), a policy-gradient method that which can take continuous action spaces as input.
+
+In our formulation, actions represent track recommendations made by the agent at each time step. Each action corresponds to a latent vector in a continuous space:
+**𝑎<sub>t</sub> ∈ 𝐴 ⊆ 𝑅<sup>d</sup>**
+
+Where: 
+
+**𝑎<sub>t</sub>** is the latent vector of the recommended track at time t,
+
+**𝑑** is the dimensionality of the latent space learned by the VAE (4)
+
+## Reward:
+
+The reward  𝑟 represents the immediate feedback received by the agent as a consequence of executing an action **𝑎<sub>t</sub>** and transitioning from the current state **𝑠<sub>t</sub>** to the next state **𝑠<sub>t+1</sub>**. It may be positive (reward) or zero (penalty), depending on the quality of the action taken in the given context.
+
+The reward is based on implicit user feedback (e.g., play, skip, like):
+
+**𝑟<sub>t</sub> = 𝑅(𝑠<sub>t</sub>,𝑎<sub>t</sub>)** = +1 if user liked or completed track, or 
+                                                   = 0 if user skipped or disliked track
+
+## Transition Probability:
+
+The transition probability function **𝑇** defines the likelihood of the agent transitioning to the next state **𝑠<sub>t+1</sub>**, given the current state **𝑠<sub>t</sub>** and action **𝑎<sub>t</sub>**. 
+Formally, this is expressed as:
+**𝑃(𝑠<sub>t+1</sub>∣𝑠<sub>t</sub>,𝑎<sub>t</sub>)**
+
+In classical reinforcement learning, a transition tensor can be constructed where each element represents:
+
+**𝑃<sub>𝑠𝑎𝑠′</sub>=𝑃(𝑠<sub>t+1</sub>=𝑠′∣𝑠<sub>t</sub>=𝑠,𝑎<sub>t</sub>=𝑎)**
+
+These transition probabilities effectively model the environment’s dynamics, allowing an agent to anticipate future states resulting from its actions. Algorithms that rely on such knowledge are known as model-based methods.
+However, in our setting, the state **𝑠<sub>t</sub>** ∈ **𝑅<sup>4</sup>** is a continuous latent vector generated by **VAE**, and the action **𝑎<sub>t</sub>** is also selected in a continuous space. This makes it infeasible to explicitly define or compute transition probabilities for the vast number of possible state action next state combinations.
+As a result, we adopt a model-free reinforcement learning approach, specifically **Proximal Policy Optimization (PPO)**. PPO does not require explicit modeling of the transition probabilities. Instead, it learns the optimal policy directly from sampled experience, updating the agents behavior based on observed and received rewards.
+
+## Observations:
+
+In your case, since user preferences (the true state) are hidden, observations represent implicit or explicit feedback from the user in response to a recommended track.
+The observation function **𝑍** defines the probability of observing **𝑜<sub>t</sub>** given that the system is in state **𝑠<sub>t</sub>** and the agent took action 
+**𝑎<sub>t</sub>:**
+
+**𝑍(𝑜<sub>t</sub>∣𝑠<sub>t</sub>,𝑎<sub>t</sub>) = 𝑃(𝑜<sub>t</sub>∣𝑠<sub>t</sub>,𝑎<sub>t</sub>)**
+
+**𝑠<sub>t</sub>**: latent representation of the currently playing track
+
+**𝑎<sub>t</sub>**: action (i.e., track recommendation)
+
+**𝑜<sub>t</sub>**: observation (e.g., feedback such as play, skip, like)
