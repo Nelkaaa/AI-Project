@@ -74,3 +74,5 @@ The observation function **𝑍** defines the probability of observing **𝑜<su
 **𝑎<sub>t</sub>**: action (i.e., track recommendation)
 
 **𝑜<sub>t</sub>**: observation (e.g., feedback such as play, skip, like)
+
+## PPO for Policy update: [https://spinningup.openai.com/en/latest/algorithms/ppo.html#key-equations]
